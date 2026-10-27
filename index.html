@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astro Defender: Duel Kosmik</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@400;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        body { 
+            font-family: 'Roboto', sans-serif; 
+            background-color: #050510; 
+            color: #fff; 
+            overflow: hidden; 
+            background-image: radial-gradient(circle at 50% 50%, #1a1a3a 0%, #000 100%);
+        }
+
+        /* --- SCREENS --- */
+        .screen {
+            position: absolute; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.5s; z-index: 10;
+        }
+        .hidden { display: none !important; }
+
+        /* --- MAIN MENU --- */
+        #menu-screen { background: url('https://www.transparenttextures.com/patterns/stardust.png') #0b0b2a; }
+        .title { font-family: 'Orbitron', sans-serif; font-size: 5rem; text-align: center; margin-bottom: 2rem; color: #00d2ff; text-shadow: 0 0 20px #3a7bd5, 0 0 40px #3a7bd5; }
+        .menu-btn-group { display: flex; gap: 20px; }
+        .btn {
+            font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: bold;
+            padding: 15px 40px; border: none; border-radius: 12px; cursor: pointer;
+            background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);
+            color: white; box-shadow: 0 6px 0 #a91b0c, 0 10px 20px rgba(0,0,0,0.5);
+            transition: all 0.1s; text-transform: uppercase;
+        }
+        .btn:active { transform: translateY(6px); box-shadow: 0 0 0 #a91b0c; }
+        .btn-blue { background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); box-shadow: 0 6px 0 #0050b3, 0 10px 20px rgba(0,0,0,0.5); }
+        .btn-blue:active { box-shadow: 0 0 0 #0050b3; }
+        .btn-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); box-shadow: 0 6px 0 #0a6c64, 0 10px 20px rgba(0,0,0,0.5); }
+        .btn-green:active { box-shadow: 0 0 0 #0a6c64; }
+
+        /* --- MODALS (Materi & Petunjuk) --- */
+        .modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80%; max-width: 800px; background: rgba(10, 15, 30, 0.95);
+            border: 2px solid #00d2ff; border-radius: 20px; padding: 40px;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.5); text-align: center;
+        }
+        .modal h2 { font-family: 'Orbitron'; font-size: 2.5rem; color: #f5af19; margin-bottom: 20px; }
+        .slide-container { display: flex; flex-direction: column; align-items: center; min-height: 250px; justify-content: center; }
+        .slide-img { font-size: 6rem; margin-bottom: 20px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.5)); }
+        .slide-title { font-size: 2rem; font-weight: bold; color: #00c6ff; margin-bottom: 10px; }
+        .slide-desc { font-size: 1.2rem; line-height: 1.6; color: #ddd; }
+        .modal-controls { margin-top: 30px; display: flex; justify-content: center; gap: 20px; align-items: center; }
+        .instructions { font-size: 1.2rem; line-height: 1.8; text-align: left; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; }
+
+        /* --- GAME SCREEN --- */
+        #game-screen { flex-direction: column; }
+        .hud-top {
+            width: 100%; height: 80px; background: rgba(0, 0, 0, 0.8);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 40px; border-bottom: 2px solid #333;
+        }
+        .timer-box { font-family: 'Orbitron'; font-size: 2.5rem; font-weight: bold; color: #f5af19; text-shadow: 0 0 10px #f5af19; }
+        .player-hud { display: flex; flex-direction: column; align-items: center; }
+        .player-name { font-family: 'Orbitron'; font-size: 1.2rem; color: #00d2ff; }
+        .hp-bar { font-size: 1.5rem; margin: 5px 0; letter-spacing: 5px; color: #ff4757; }
+        .score-box { font-size: 1.5rem; font-weight: bold; }
+
+        .split-container { display: flex; width: 100%; height: calc(100vh - 80px); }
+        .player-area { flex: 1; display: flex; flex-direction: column; position: relative; }
+        .player-area:first-child { border-right: 4px dashed rgba(255,255,255,0.2); }
+        
+        /* Play Zone (Dimana alien jatuh) */
+        .play-zone { flex: 1; position: relative; overflow: hidden; background: url('https://www.transparenttextures.com/patterns/stardust.png'); }
+        
+        /* Alien / Target */
+        .alien {
+            position: absolute; width: 160px; background: rgba(20, 20, 40, 0.95);
+            border: 2px solid #ff4757; border-radius: 12px; padding: 12px;
+            text-align: center; color: white; transform: translateX(-50%);
+            box-shadow: 0 0 15px rgba(255, 71, 87, 0.6); z-index: 5;
+            transition: border-color 0.2s;
+        }
+        .alien .icon { font-size: 2rem; margin-bottom: 5px; }
+        .alien .q-text { font-size: 0.9rem; font-weight: bold; line-height: 1.2; }
+
+        /* Laser Animation */
+        .laser {
+            position: absolute; width: 6px; height: 30px; background: #00d2ff;
+            box-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff; border-radius: 5px;
+            transform: translateX(-50%); z-index: 4; transition: top 0.15s linear, left 0.15s linear;
+        }
+        .laser-p2 { background: #38ef7d; box-shadow: 0 0 10px #38ef7d, 0 0 20px #38ef7d; }
+        .explosion {
+            position: absolute; font-size: 3rem; transform: translate(-50%, -50%);
+            animation: pop 0.3s ease-out forwards; z-index: 6; pointer-events: none;
+        }
+        @keyframes pop { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } }
+
+        /* Controls (Tombol Jawaban) */
+        .controls {
+            height: 35%; min-height: 220px; background: #080812; border-top: 2px solid #333;
+            display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr);
+            gap: 12px; padding: 20px;
+        }
+        .ans-btn {
+            font-family: 'Roboto', sans-serif; font-size: 1.1rem; font-weight: bold;
+            background: linear-gradient(180deg, #2b32b2 0%, #1488cc 100%);
+            border: 2px solid #64b5f6; border-radius: 10px; color: white;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 6px 0 #0d47a1; transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .ans-btn:active { transform: translateY(6px); box-shadow: 0 0 0 #0d47a1; background: #1488cc; }
+        .ans-btn.p2-btn { background: linear-gradient(180deg, #237a57 0%, #093028 100%); border-color: #81c784; box-shadow: 0 6px 0 #1b5e20; }
+        .ans-btn.p2-btn:active { box-shadow: 0 0 0 #1b5e20; background: #237a57; }
+        
+        .game-over-box { font-size: 2rem; color: red; font-family: 'Orbitron'; display: none; position: absolute; top: 50%; width: 100%; text-align: center; background: rgba(0,0,0,0.8); padding: 20px; z-index: 20; }
+    </style>
+</head>
+<body>
+
+    <!-- MAIN MENU -->
+    <div id="menu-screen" class="screen">
+        <h1 class="title">ASTRO DEFENDER<br><span style="font-size: 3rem; color: #f5af19; text-shadow: 0 0 10px #f5af19;">DUEL KOSMIK</span></h1>
+        <div class="menu-btn-group">
+            <button class="btn btn-blue" onclick="showModal('materi-modal'); playSound('click');">📚 Materi</button>
+            <button class="btn btn-green" onclick="showModal('petunjuk-modal'); playSound('click');">❓ Cara Bermain</button>
+            <button class="btn" onclick="showDifficultyMenu(); playSound('click');">🚀 MAIN SEKARANG</button>
+        </div>
+    </div>
+
+    <!-- DIFFICULTY MENU -->
+    <div id="diff-screen" class="screen hidden" style="background: url('https://www.transparenttextures.com/patterns/stardust.png') #0b0b2a;">
+        <h2 style="font-family: 'Orbitron'; font-size: 3rem; margin-bottom: 40px;">PILIH KESULITAN</h2>
+        <div class="menu-btn-group" style="margin-bottom: 30px;">
+            <button class="btn btn-green" onclick="startGame('easy')">🌟 MUDAH</button>
+            <button class="btn btn-blue" onclick="startGame('medium')">☄️ SEDANG</button>
+            <button class="btn" onclick="startGame('hard')">🔥 SULIT</button>
+        </div>
+        <button class="btn" style="background: #555; box-shadow: 0 6px 0 #333;" onclick="goBackMenu(); playSound('click');">Kembali</button>
+    </div>
+
+    <!-- MATERI MODAL -->
+    <div id="materi-modal" class="modal hidden">
+        <h2>Materi Tata Surya</h2>
+        <div class="slide-container">
+            <div id="slide-img" class="slide-img">☀️</div>
+            <div id="slide-title" class="slide-title">Matahari</div>
+            <div id="slide-desc" class="slide-desc">Pusat tata surya kita. Sebuah bintang raksasa yang memancarkan panas dan cahaya untuk kehidupan di Bumi.</div>
+        </div>
+        <div class="modal-controls">
+            <button class="btn btn-blue" style="padding: 10px 20px; font-size: 1rem;" onclick="changeSlide(-1); playSound('click');">◀ Prev</button>
+            <span id="slide-indicator" style="font-weight: bold;">1 / 12</span>
+            <button class="btn btn-blue" style="padding: 10px 20px; font-size: 1rem;" onclick="changeSlide(1); playSound('click');">Next ▶</button>
+        </div>
+        <button class="btn" style="margin-top: 20px; background: #555; box-shadow: 0 6px 0 #333; padding: 10px 30px; font-size: 1rem;" onclick="closeModal('materi-modal'); playSound('click');">Tutup</button>
+    </div>
+
+    <!-- PETUNJUK MODAL -->
+    <div id="petunjuk-modal" class="modal hidden">
+        <h2>Cara Bermain</h2>
+        <div class="instructions">
+            1. Game ini dimainkan oleh <b>2 Orang</b> (Layar Kiri vs Layar Kanan).<br>
+            2. Akan ada <b>Alien</b> yang turun membawa pertanyaan tentang Tata Surya.<br>
+            3. Baca soalnya, dan tekan tombol jawaban (peluru) yang benar di bagian bawah layarmu.<br>
+            4. Jika benar, senjatamu akan menembak alien dan kamu mendapat <b>+10 Poin</b>.<br>
+            5. Jika salah menekan, <b>-5 Poin</b>.<br>
+            6. Jangan biarkan alien mencapai bawah layar! Jika tembus, kamu kehilangan <b>1 Hati (HP)</b>.<br>
+            7. Permainan berakhir jika Waktu (3 Menit) habis, atau HP habis.<br>
+            8. Pemain dengan skor tertinggi adalah pemenangnya!
+        </div>
+        <button class="btn" style="margin-top: 30px; background: #555; box-shadow: 0 6px 0 #333; padding: 10px 30px; font-size: 1rem;" onclick="closeModal('petunjuk-modal'); playSound('click');">Tutup</button>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div id="game-over-screen" class="screen hidden" style="background: rgba(0,0,0,0.9);">
+        <h1 class="title" id="winner-text" style="color: #fff;">WAKTU HABIS!</h1>
+        <h2 style="font-family: 'Orbitron'; font-size: 2rem; margin: 20px 0; color: #00d2ff;" id="final-score-1">Pemain 1: 0</h2>
+        <h2 style="font-family: 'Orbitron'; font-size: 2rem; margin-bottom: 40px; color: #38ef7d;" id="final-score-2">Pemain 2: 0</h2>
+        <button class="btn" onclick="location.reload()">KEMBALI KE MENU UTAMA</button>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="game-screen" class="screen hidden">
+        <div class="hud-top">
+            <div class="player-hud">
+                <div class="player-name" style="color: #64b5f6;">PEMAIN 1</div>
+                <div class="hp-bar" id="p1-hp">❤️❤️❤️</div>
+                <div class="score-box" id="p1-score" style="color: #64b5f6;">Skor: 0</div>
+            </div>
+            <div class="timer-box" id="timer-display">03:00</div>
+            <div class="player-hud">
+                <div class="player-name" style="color: #81c784;">PEMAIN 2</div>
+                <div class="hp-bar" id="p2-hp">❤️❤️❤️</div>
+                <div class="score-box" id="p2-score" style="color: #81c784;">Skor: 0</div>
+            </div>
+        </div>
+        <div class="split-container">
+            <!-- P1 Area -->
+            <div class="player-area">
+                <div class="play-zone" id="p1-zone"></div>
+                <div class="controls" id="p1-controls"></div>
+                <div id="p1-gameover" class="game-over-box">PEMAIN 1 KALAH!</div>
+            </div>
+            <!-- P2 Area -->
+            <div class="player-area">
+                <div class="play-zone" id="p2-zone"></div>
+                <div class="controls" id="p2-controls"></div>
+                <div id="p2-gameover" class="game-over-box">PEMAIN 2 KALAH!</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+/* ================= AUDIO SYNTHESIZER ================= */
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function initAudio() { if(!audioCtx) { audioCtx = new AudioContext(); } if(audioCtx.state === 'suspended') { audioCtx.resume(); } }
+
+function playSound(type) {
+    if (!audioCtx) initAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+
+    if (type === 'click') {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(800, now);
+        gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'shoot') {
+        osc.type = 'square'; osc.frequency.setValueAtTime(1000, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+        gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+    } else if (type === 'hit') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+        gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now); osc.stop(now + 0.2);
+    } else if (type === 'wrong') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now); osc.stop(now + 0.3);
+    }
+}
+
+/* ================= DATA MATERI & JAWABAN ================= */
+const answers = ["Matahari", "Bulan", "Merkurius", "Venus", "Bumi", "Mars", "Yupiter", "Saturnus", "Uranus", "Neptunus", "Komet", "Asteroid"];
+
+const materiData = [
+    { img: "☀️", name: "Matahari", desc: "Pusat tata surya kita. Sebuah bintang raksasa yang menghasilkan cahaya dan panas untuk kehidupan." },
+    { img: "🌙", name: "Bulan", desc: "Satelit alami Bumi. Mengelilingi bumi dan gravitasinya menyebabkan pasang surut air laut." },
+    { img: "🌑", name: "Merkurius", desc: "Planet terdekat dari Matahari dan terkecil di tata surya. Suhu siang dan malamnya sangat ekstrem." },
+    { img: "🌕", name: "Venus", desc: "Planet terpanas karena efek rumah kaca dari atmosfer tebalnya. Sering disebut Bintang Kejora." },
+    { img: "🌍", name: "Bumi", desc: "Satu-satunya planet yang diketahui memiliki kehidupan. 70% permukaannya tertutup oleh air cair." },
+    { img: "🔴", name: "Mars", desc: "Dijuluki Planet Merah karena kandungan besi oksida (karat) di debunya. Memiliki gunung tertinggi Olympus Mons." },
+    { img: "🪐", name: "Yupiter", desc: "Planet raksasa gas terbesar di tata surya kita. Memiliki badai abadi bernama Bintik Merah Raksasa." },
+    { img: "🪐", name: "Saturnus", desc: "Planet yang memiliki sistem cincin paling besar dan indah yang terbuat dari es dan bebatuan." },
+    { img: "🧊", name: "Uranus", desc: "Planet es raksasa yang sumbu rotasinya sangat miring sehingga tampak seperti menggelinding." },
+    { img: "🔵", name: "Neptunus", desc: "Planet terjauh dari matahari. Berwarna biru gelap dan memiliki angin terkencang di tata surya." },
+    { img: "☄️", name: "Komet", desc: "Benda langit dari es dan debu purba. Saat mendekati matahari, esnya menguap membentuk ekor gas bercahaya." },
+    { img: "🪨", name: "Asteroid", desc: "Sisa batuan pembentukan tata surya. Paling banyak berkumpul di Sabuk Asteroid antara Mars dan Yupiter." }
+];
+
+/* ================= DATABASE SOAL (3x30 Soal) ================= */
+const questions = {
+    easy: [
+        { q: "Pusat dari tata surya kita?", a: "Matahari" }, { q: "Planet tempat kita hidup?", a: "Bumi" }, { q: "Satelit yang mengelilingi Bumi?", a: "Bulan" }, { q: "Planet yang berwarna merah?", a: "Mars" }, { q: "Planet yang paling besar ukurannya?", a: "Yupiter" },
+        { q: "Bintang yang bersinar di siang hari?", a: "Matahari" }, { q: "Benda langit bercincin terindah?", a: "Saturnus" }, { q: "Planet terpanas di tata surya?", a: "Venus" }, { q: "Planet paling dekat dengan Matahari?", a: "Merkurius" }, { q: "Planet paling jauh dari Matahari?", a: "Neptunus" },
+        { q: "Benda langit berekor yang menyala?", a: "Komet" }, { q: "Batu luar angkasa di antara Mars & Yupiter?", a: "Asteroid" }, { q: "Planet urutan ke-3 dari matahari?", a: "Bumi" }, { q: "Planet ke-6 dari matahari?", a: "Saturnus" }, { q: "Planet yang ukurannya paling kecil?", a: "Merkurius" },
+        { q: "Planet tempat terdapat lautan luas?", a: "Bumi" }, { q: "Benda penyedia energi utama bagi Bumi?", a: "Matahari" }, { q: "Satelit alami yang bersinar di malam hari?", a: "Bulan" }, { q: "Planet yang terkenal dengan cincin esnya?", a: "Saturnus" }, { q: "Planet yang berada di antara Bumi & Yupiter?", a: "Mars" },
+        { q: "Planet yang diapit oleh Merkurius & Bumi?", a: "Venus" }, { q: "Benda langit yang sering disebut bintang jatuh?", a: "Komet" }, { q: "Sebongkah batu raksasa melayang di luar angkasa?", a: "Asteroid" }, { q: "Pusat gravitasi seluruh planet?", a: "Matahari" }, { q: "Planet gas paling besar?", a: "Yupiter" },
+        { q: "Tempat manusia tinggal saat ini?", a: "Bumi" }, { q: "Planet urutan kedua dari matahari?", a: "Venus" }, { q: "Bulan merupakan satelit dari planet?", a: "Bumi" }, { q: "Planet dengan badai bintik merah?", a: "Yupiter" }, { q: "Planet es berwarna biru terluar?", a: "Neptunus" }
+    ],
+    medium: [
+        { q: "Planet yang dijuluki Bintang Fajar/Kejora?", a: "Venus" }, { q: "Planet yang mengorbit dengan posisi miring?", a: "Uranus" }, { q: "Garis edarnya sangat lonjong mendekati matahari?", a: "Komet" }, { q: "Pecahan batu yang mengelompok membentuk sabuk?", a: "Asteroid" }, { q: "Satu-satunya benda langit yang pernah dikunjungi manusia selain Bumi?", a: "Bulan" },
+        { q: "Planet rotasinya berlawanan arah dari planet lain?", a: "Venus" }, { q: "Planet gas raksasa yang pertama dari matahari?", a: "Yupiter" }, { q: "Memiliki pegunungan tertinggi Olympus Mons?", a: "Mars" }, { q: "Planet yang paling cepat berevolusi?", a: "Merkurius" }, { q: "Komet Halley adalah salah satu contoh?", a: "Komet" },
+        { q: "Planet yang kaya akan Oksigen dan Air Cair?", a: "Bumi" }, { q: "Planet dengan bulan/satelit alami terbanyak?", a: "Saturnus" }, { q: "Permukaannya banyak kawah akibat tabrakan meteor?", a: "Bulan" }, { q: "Atmosfernya dipenuhi gas beracun Karbon Dioksida dan awan asam?", a: "Venus" }, { q: "Ditemukan oleh teleskop, planet biru pucat bergas metana?", a: "Uranus" },
+        { q: "Planet raksasa gas dengan cincin sangat tipis dan tak terlihat?", a: "Yupiter" }, { q: "Gumpalan es kotor purba dari pembentukan tata surya?", a: "Komet" }, { q: "Objek berbatu yang ukurannya lebih kecil dari planet kerdil?", a: "Asteroid" }, { q: "Massa jenisnya paling ringan (lebih ringan dari air)?", a: "Saturnus" }, { q: "Suhu siang & malam perbedaannya paling ekstrem?", a: "Merkurius" },
+        { q: "Angin bertiup paling kencang mencapai 2000 km/jam?", a: "Neptunus" }, { q: "Memiliki satelit bernama Titan?", a: "Saturnus" }, { q: "Memiliki satelit bernama Phobos dan Deimos?", a: "Mars" }, { q: "Planet tak bercincin yang ukurannya hampir sama dengan Bumi?", a: "Venus" }, { q: "Mengendalikan pasang surut laut di Bumi?", a: "Bulan" },
+        { q: "Sumber cahaya utama bagi planet-planet?", a: "Matahari" }, { q: "Komet yang berekor ini ketika mendekati?", a: "Matahari" }, { q: "Batu-batu ini membentuk sabuk pemisah planet dalam & luar?", a: "Asteroid" }, { q: "Cahaya pantulan dari bintang yang menyinari malam bumi?", a: "Bulan" }, { q: "Planet kembar dari Neptunus (planet es raksasa)?", a: "Uranus" }
+    ],
+    hard: [
+        { q: "Memiliki suhu inti mencapai 15 juta derajat Celcius?", a: "Matahari" }, { q: "Kawah Tycho dan Copernicus berada di?", a: "Bulan" }, { q: "Rotasi retrograde (barat ke timur) paling lambat?", a: "Venus" }, { q: "Memiliki lembah raksasa Valles Marineris?", a: "Mars" }, { q: "Periode revolusinya sekitar 88 hari?", a: "Merkurius" },
+        { q: "Terdapat Awan Oort di pinggiran tata surya tempat asalnya?", a: "Komet" }, { q: "Ceres dan Vesta merupakan objek terkenal di kelompok?", a: "Asteroid" }, { q: "Rotasi terpendek (hanya sekitar 10 jam) planet?", a: "Yupiter" }, { q: "Sumbu rotasinya miring 98 derajat sejajar orbitnya?", a: "Uranus" }, { q: "Pesawat Voyager 2 menemukan cincin Adams pada planet?", a: "Neptunus" },
+        { q: "Memiliki badai heksagonal misterius di kutub utaranya?", a: "Saturnus" }, { q: "Massa penyusunnya 99.8% dari total massa tata surya?", a: "Matahari" }, { q: "Planet ini dilindungi magnetosfer yang kuat untuk kehidupan?", a: "Bumi" }, { q: "Benda dari es, batu, dan debu yang menyublim dekat surya?", a: "Komet" }, { q: "Materi batuan ini sisa kegagalan pembentukan planet antara Mars-Yupiter?", a: "Asteroid" },
+        { q: "Memiliki satelit raksasa bernama Ganymede?", a: "Yupiter" }, { q: "Memiliki satelit Triton yang mengorbit mundur?", a: "Neptunus" }, { q: "Warna kemerahannya karena debu regolit kaya besi?", a: "Mars" }, { q: "Bulan ini tidak punya atmosfer sehingga suhu permukaannya kontras?", a: "Bulan" }, { q: "Tersusun dari Hidrogen & Helium berubah jadi plasma?", a: "Matahari" },
+        { q: "Satu tahun disini sama dengan 165 tahun Bumi?", a: "Neptunus" }, { q: "Atmosfernya 100 kali lebih padat dibanding Bumi?", a: "Venus" }, { q: "Suhu malam harinya mencapai minus 180 derajat C di planet terdalam?", a: "Merkurius" }, { q: "Cincinnya dinamai secara alfabetis sesuai penemuan (Cincin A, B, C)?", a: "Saturnus" }, { q: "Rotasinya sedikit lebih lama dari 1 hari bumi, yaitu 24,6 jam?", a: "Mars" },
+        { q: "Memiliki mantel silikat dan kerak tektonik aktif?", a: "Bumi" }, { q: "Komet Shoemaker-Levy 9 pernah menabrak planet raksasa ini?", a: "Yupiter" }, { q: "Satelit alami yang terkunci secara pasang surut (wajah sama)?", a: "Bulan" }, { q: "Tersusun utama dari es metana dan amonia (Ice Giant)?", a: "Uranus" }, { q: "Memancarkan panas dari inti, bukan sekadar memantulkan cahaya?", a: "Matahari" }
+    ]
+};
+
+/* ================= UI LOGIC ================= */
+let currentSlide = 0;
+
+function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function showDifficultyMenu() { document.getElementById('menu-screen').classList.add('hidden'); document.getElementById('diff-screen').classList.remove('hidden'); }
+function goBackMenu() { document.getElementById('diff-screen').classList.add('hidden'); document.getElementById('menu-screen').classList.remove('hidden'); }
+
+function changeSlide(dir) {
+    currentSlide += dir;
+    if (currentSlide < 0) currentSlide = materiData.length - 1;
+    if (currentSlide >= materiData.length) currentSlide = 0;
+    
+    document.getElementById('slide-img').innerText = materiData[currentSlide].img;
+    document.getElementById('slide-title').innerText = materiData[currentSlide].name;
+    document.getElementById('slide-desc').innerText = materiData[currentSlide].desc;
+    document.getElementById('slide-indicator').innerText = (currentSlide + 1) + " / " + materiData.length;
+}
+
+/* ================= GAME LOGIC ================= */
+let p1 = { hp: 3, score: 0, aliens: [], isDead: false, zoneId: 'p1-zone', btnClass: 'ans-btn' };
+let p2 = { hp: 3, score: 0, aliens: [], isDead: false, zoneId: 'p2-zone', btnClass: 'ans-btn p2-btn' };
+let gameTimer, spawnTimerP1, spawnTimerP2;
+let gameTime = 180; 
+let currentDifficulty = 'easy';
+let animationFrameId;
+
+const difficultySettings = {
+    easy: { spawnRate: 3500, speedY: 0.5, amplitude: 30, freq: 80 },
+    medium: { spawnRate: 2500, speedY: 1.0, amplitude: 50, freq: 60 },
+    hard: { spawnRate: 1800, speedY: 1.5, amplitude: 80, freq: 40 }
+};
+
+function buildControls(playerData) {
+    let html = '';
+    answers.forEach(ans => {
+        html += `<button class="${playerData.btnClass}" onclick="handleAnswer('${playerData.zoneId}', '${ans}')">${ans}</button>`;
+    });
+    return html;
+}
+
+function startGame(difficulty) {
+    initAudio(); playSound('click');
+    currentDifficulty = difficulty;
+    
+    // Reset Data
+    p1 = { hp: 3, score: 0, aliens: [], isDead: false, zoneId: 'p1-zone', btnClass: 'ans-btn' };
+    p2 = { hp: 3, score: 0, aliens: [], isDead: false, zoneId: 'p2-zone', btnClass: 'ans-btn p2-btn' };
+    gameTime = 180;
+
+    document.getElementById('p1-zone').innerHTML = '';
+    document.getElementById('p2-zone').innerHTML = '';
+    document.getElementById('p1-controls').innerHTML = buildControls(p1);
+    document.getElementById('p2-controls').innerHTML = buildControls(p2);
+    
+    document.getElementById('p1-gameover').style.display = 'none';
+    document.getElementById('p2-gameover').style.display = 'none';
+    
+    updateHUD();
+    
+    document.getElementById('diff-screen').classList.add('hidden');
+    document.getElementById('game-screen').classList.remove('hidden');
+
+    // Start Loops
+    gameTimer = setInterval(updateTime, 1000);
+    spawnTimerP1 = setInterval(() => spawnAlien(p1), difficultySettings[currentDifficulty].spawnRate);
+    spawnTimerP2 = setInterval(() => spawnAlien(p2), difficultySettings[currentDifficulty].spawnRate);
+    
+    lastTime = performance.now();
+    gameLoop(lastTime);
+}
+
+function updateHUD() {
+    document.getElementById('p1-hp').innerText = '❤️'.repeat(p1.hp) + '🖤'.repeat(3 - p1.hp);
+    document.getElementById('p2-hp').innerText = '❤️'.repeat(p2.hp) + '🖤'.repeat(3 - p2.hp);
+    document.getElementById('p1-score').innerText = 'Skor: ' + p1.score;
+    document.getElementById('p2-score').innerText = 'Skor: ' + p2.score;
+}
+
+function updateTime() {
+    gameTime--;
+    let m = Math.floor(gameTime / 60).toString().padStart(2, '0');
+    let s = (gameTime % 60).toString().padStart(2, '0');
+    document.getElementById('timer-display').innerText = `${m}:${s}`;
+    
+    if (gameTime <= 0) { endGame(); }
+}
+
+function getRandomQuestion() {
+    let pool = questions[currentDifficulty];
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function spawnAlien(player) {
+    if (player.isDead) return;
+    
+    const zone = document.getElementById(player.zoneId);
+    let qData = getRandomQuestion();
+    
+    let alienEl = document.createElement('div');
+    alienEl.className = 'alien';
+    
+    let icons = ['👽', '👾', '🛸', '🚀', '☄️'];
+    let icon = icons[Math.floor(Math.random() * icons.length)];
+    
+    alienEl.innerHTML = `<div class="icon">${icon}</div><div class="q-text">${qData.q}</div>`;
+    
+    // Random start X (keep inside bounds)
+    let startX = 80 + Math.random() * (zone.clientWidth - 160);
+    alienEl.style.left = startX + 'px';
+    alienEl.style.top = '-80px';
+    zone.appendChild(alienEl);
+    
+    player.aliens.push({
+        el: alienEl, answer: qData.a,
+        y: -80, startX: startX,
+        phase: Math.random() * Math.PI * 2
+    });
+}
+
+let lastTime = 0;
+function gameLoop(time) {
+    let dt = time - lastTime;
+    lastTime = time;
+    
+    let conf = difficultySettings[currentDifficulty];
+    // Time scaling for smooth movement independent of framerate
+    let timeScale = dt / 16.66; 
+
+    [p1, p2].forEach(player => {
+        if (player.isDead) return;
+        const zoneHeight = document.getElementById(player.zoneId).clientHeight;
+        
+        for (let i = player.aliens.length - 1; i >= 0; i--) {
+            let a = player.aliens[i];
+            a.y += conf.speedY * timeScale;
+            // Wavy Movement
+            let currentX = a.startX + Math.sin(a.y / conf.freq + a.phase) * conf.amplitude;
+            
+            a.el.style.top = a.y + 'px';
+            a.el.style.left = currentX + 'px';
+            
+            // Check Hit Bottom
+            if (a.y > zoneHeight - 20) {
+                a.el.remove();
+                player.aliens.splice(i, 1);
+                player.hp--;
+                playSound('wrong');
+                updateHUD();
+                
+                if (player.hp <= 0) {
+                    player.isDead = true;
+                    document.getElementById(player.zoneId === 'p1-zone' ? 'p1-gameover' : 'p2-gameover').style.display = 'block';
+                    if (p1.isDead && p2.isDead) endGame();
+                }
+            }
+        }
+    });
+    
+    if (gameTime > 0 && !(p1.isDead && p2.isDead)) {
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+}
+
+function handleAnswer(zoneId, answerClicked) {
+    initAudio();
+    let player = zoneId === 'p1-zone' ? p1 : p2;
+    if (player.isDead) return;
+
+    // Find the lowest alien with matching answer
+    let targetIndex = -1;
+    let maxY = -999;
+    
+    for (let i = 0; i < player.aliens.length; i++) {
+        if (player.aliens[i].answer === answerClicked && player.aliens[i].y > maxY) {
+            maxY = player.aliens[i].y;
+            targetIndex = i;
+        }
+    }
+    
+    if (targetIndex !== -1) {
+        // Correct Answer
+        playSound('shoot');
+        let targetAlien = player.aliens[targetIndex];
+        let zone = document.getElementById(player.zoneId);
+        
+        // Create Laser
+        let laser = document.createElement('div');
+        laser.className = zoneId === 'p1-zone' ? 'laser' : 'laser laser-p2';
+        laser.style.left = zone.clientWidth / 2 + 'px';
+        laser.style.top = zone.clientHeight + 'px';
+        zone.appendChild(laser);
+        
+        // Animate Laser
+        setTimeout(() => {
+            laser.style.left = targetAlien.el.style.left;
+            laser.style.top = targetAlien.y + 'px';
+        }, 10);
+        
+        // Remove Array item to prevent hitting same twice
+        player.aliens.splice(targetIndex, 1);
+        
+        setTimeout(() => {
+            laser.remove();
+            playSound('hit');
+            
+            // Explosion Effect
+            let exp = document.createElement('div');
+            exp.className = 'explosion';
+            exp.innerText = '💥';
+            exp.style.left = targetAlien.el.style.left;
+            exp.style.top = targetAlien.y + 'px';
+            zone.appendChild(exp);
+            
+            targetAlien.el.remove();
+            setTimeout(() => exp.remove(), 300);
+            
+            player.score += 10;
+            updateHUD();
+        }, 150);
+
+    } else {
+        // Wrong Answer
+        playSound('wrong');
+        player.score = Math.max(0, player.score - 5);
+        updateHUD();
+    }
+}
+
+function endGame() {
+    clearInterval(gameTimer);
+    clearInterval(spawnTimerP1);
+    clearInterval(spawnTimerP2);
+    cancelAnimationFrame(animationFrameId);
+    
+    document.getElementById('final-score-1').innerText = "Pemain 1: " + p1.score;
+    document.getElementById('final-score-2').innerText = "Pemain 2: " + p2.score;
+    
+    let winText = "WAKTU HABIS! SERI!";
+    if (p1.score > p2.score) winText = "PEMAIN 1 MENANG! 🏆";
+    else if (p2.score > p1.score) winText = "PEMAIN 2 MENANG! 🏆";
+    
+    // If one survived and other died
+    if (p1.isDead && !p2.isDead) winText = "PEMAIN 2 MENANG! 🏆";
+    if (p2.isDead && !p1.isDead) winText = "PEMAIN 1 MENANG! 🏆";
+    if (p1.isDead && p2.isDead) winText = "KEDUANYA GUGUR!";
+    
+    document.getElementById('winner-text').innerText = winText;
+    document.getElementById('game-over-screen').classList.remove('hidden');
+}
+</script>
+</body>
+</html>
