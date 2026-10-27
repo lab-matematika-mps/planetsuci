@@ -181,8 +181,9 @@ body{height:100%;position:relative;overflow:hidden;font-family:'Fredoka','Trebuc
     <li>Tekan tombol jawaban di bawah layarmu. Jawaban benar menembak alien dan memberi +10 poin.</li>
     <li>Salah tekan akan mengurangi 5 poin.</li>
     <li>Alien yang sampai di dasar layar mengambil 1 HP ❤️ (kamu punya 3).</li>
-    <li>Permainan selesai saat waktu 3 menit habis atau HP semua pemain habis.</li>
-    <li>Skor tertinggi jadi pemenangnya!</li>
+    <li>Permainan langsung selesai jika salah satu pemain kehilangan 3 nyawa. Lawannya otomatis menang!</li>
+    <li>Jika waktu 3 menit habis, skor tertinggi menang. Kalau skornya sama, kalian berdua menang.</li>
+    
   </ol>
   <button class="btn gr" onclick="closeM('how')"><i class="ic" data-i="x"></i>Tutup</button>
 </div></div>
@@ -196,6 +197,7 @@ body{height:100%;position:relative;overflow:hidden;font-family:'Fredoka','Trebuc
 </div></div>
 
 <div id="over" class="ov hidden"><div class="card">
+  <p class="sub" id="why"></p>
   <h2 id="win"></h2>
   <p class="fs" style="color:#2de2e6">Pemain 1: <b id="f1">0</b></p>
   <p class="fs" style="color:#ffc83d">Pemain 2: <b id="f2">0</b></p>
@@ -411,7 +413,7 @@ function slide(d,q,to){
 }
 $('dots').innerHTML=Array.from({length:NS},(_,j)=>`<button aria-label="Slide ${j+1}" onclick="slide(0,0,${j})"></button>`).join('');
 slide(0,1);
-$('split').innerHTML=[1,2].map(n=>`<div class="pa" id="a${n}"><div class="zone" id="z${n}"><div class="can"></div></div><div class="ctl">${NAMES.map((nm,k)=>`<button class="ab" onclick="ans(this,${n-1},${k})">${ic(BODY[k])}<span>${nm}</span></button>`).join('')}</div><div class="dead">Pemain ${n} kalah!<br>Tunggu temanmu selesai</div></div>`).join('');
+$('split').innerHTML=[1,2].map(n=>`<div class="pa" id="a${n}"><div class="zone" id="z${n}"><div class="can"></div></div><div class="ctl">${NAMES.map((nm,k)=>`<button class="ab" onclick="ans(this,${n-1},${k})">${ic(BODY[k])}<span>${nm}</span></button>`).join('')}</div><div class="dead">Pemain ${n} kalah!</div></div>`).join('');
 /* ---------- Game ---------- */
 let G,diff='easy',time=180,running=false,paused=false,timer,spT,raf,last;
 const fx=(e,c)=>{e.classList.remove(c);void e.offsetWidth;e.classList.add(c)};
@@ -440,7 +442,7 @@ function loop(t){
   const ms=Math.min(t-last,50),dt=ms/16.67,c=SET[diff];last=t;
   if(paused)G.forEach(p=>p.next+=ms);
   else G.forEach(p=>{
-    if(p.dead)return;
+    if(p.dead||!running)return;
     const z=$('z'+(p.i+1)),H=z.clientHeight,v=c.v*H/700*dt;
     for(let i=p.al.length-1;i>=0;i--){
       const a=p.al[i];a.y+=v;a.e.style.top=a.y+'px';a.e.style.left=(a.x0+Math.sin(a.y/c.fr+a.ph)*a.amp)+'px';
@@ -453,7 +455,7 @@ function loop(t){
 }
 function hurt(p,z){
   p.hp--;snd('wrong');fx(z,'hurt');hud();
-  if(p.hp<=0){p.dead=true;p.al.forEach(a=>a.e.remove());p.al=[];$('a'+(p.i+1)).classList.add('out');if(G.every(q=>q.dead))end()}
+  if(p.hp<=0){p.dead=true;p.al.forEach(a=>a.e.remove());p.al=[];$('a'+(p.i+1)).classList.add('out');end()}
 }
 function ans(b,i,k){
   const p=G&&G[i];if(!running||paused||!p||p.dead)return;
@@ -472,9 +474,9 @@ function ans(b,i,k){
 }
 function end(){
   if(!running)return;running=false;clearInterval(timer);clearInterval(spT);cancelAnimationFrame(raf);
-  const[a,b]=G;let w=a.score>b.score?0:b.score>a.score?1:-1;
-  if(a.dead!==b.dead)w=a.dead?1:0;
-  $('win').textContent=w<0?'Seri! 🤝':'Pemain '+(w+1)+' menang! 🏆';
+  const[a,b]=G;let w=a.dead?1:b.dead?0:a.score>b.score?0:b.score>a.score?1:-1;
+  $('why').textContent=time<=0?'Waktu habis!':'Nyawa habis!';
+  $('win').textContent=w<0?'Selamat, kalian berdua yang menang! 🎉':'Pemain '+(w+1)+' menang! 🏆';
   $('f1').textContent=a.score;$('f2').textContent=b.score;
   setTimeout(()=>show('over'),500);
 }
